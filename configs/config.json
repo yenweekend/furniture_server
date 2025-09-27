@@ -1,0 +1,25 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": 250204,
+    "database": "baya",
+    "host": "127.0.0.1",
+    "dialect": "postgres",
+    "logging": false,
+    "timezone": "+07:00"
+  },
+  "test": {
+    "username": "root",
+    "password": null,
+    "database": "baya",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "root",
+    "password": null,
+    "database": "baya",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}
