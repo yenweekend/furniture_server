@@ -14,7 +14,6 @@ const FRONTEND_URL =
     : "http://localhost:5173";
 
 const allowedOrigins = ["http://localhost:5173", process.env.URL_CLIENT];
-const session = require("express-session");
 
 app.use(express.json());
 app.use(
@@ -39,6 +38,10 @@ app.use(express.urlencoded({ extended: true }));
 dbConn();
 
 sequelize.sync();
+
+const routes = require("./routes");
+
+app.use("/api", routes);
 
 app.get("/", (req, res) => {
   res.send("Server Baya On");
