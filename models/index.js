@@ -1,3 +1,10 @@
+// User
+const User = require("./user");
+
+const Coupon = require("./coupon");
+const UserCoupon = require("./user_coupon");
+const Address = require("./address");
+
 // Product
 const Product = require("./Product/product");
 const Category = require("./Product/category");
@@ -14,6 +21,8 @@ const ProductCollection = require("./Product/product_collection");
 const Vendor = require("./Product/vendor");
 
 module.exports = {
+  User,
+
   Product,
   Category,
   CategorySubCategory,
@@ -26,5 +35,9 @@ module.exports = {
   ReviewImage,
   ProductVariantAttribute,
   ProductCollection,
-  Vendor
+  Vendor,
+
+  Coupon,
+  UserCoupon,
+  Address,
 };

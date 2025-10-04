@@ -1,4 +1,8 @@
 const {
+  User,
+  Coupon,
+  UserCoupon,
+
   Product,
   Category,
   CategorySubCategory,
@@ -13,6 +17,41 @@ const {
   ProductCollection,
   Vendor,
 } = require("./index");
+
+// user - coupon
+
+User.belongsToMany(Coupon, {
+  as: "coupons",
+  through: UserCoupon,
+  foreignKey: "user_id",
+  otherKey: "coupon_id",
+});
+Coupon.belongsToMany(User, {
+  as: "users",
+  through: UserCoupon,
+  foreignKey: "coupon_id",
+  otherKey: "user_id",
+});
+User.hasMany(UserCoupon, {
+  foreignKey: "user_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+UserCoupon.belongsTo(User, {
+  foreignKey: "user_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+Coupon.hasMany(UserCoupon, {
+  foreignKey: "coupon_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+UserCoupon.belongsTo(Coupon, {
+  foreignKey: "coupon_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
 
 // Product - Collection
 Product.belongsToMany(Collection, {
@@ -182,4 +221,8 @@ module.exports = {
   AttributeValue,
   ProductVariantAttribute,
   Vendor,
+
+  User,
+  UserCoupon,
+  Coupon,
 };
