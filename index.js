@@ -14,7 +14,7 @@ const FRONTEND_URL =
     : "http://localhost:5173";
 
 const allowedOrigins = ["http://localhost:5173", process.env.URL_CLIENT];
-
+const session = require("express-session");
 app.use(express.json());
 app.use(
   cors({

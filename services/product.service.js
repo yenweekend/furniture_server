@@ -1,3 +1,11 @@
+const {
+  AttributeValue,
+  Attribute,
+  Product,
+  ProductVariantAttribute,
+  Image,
+  Vendor,
+} = require("../models/association");
 const { Op } = require("sequelize");
 
 module.exports = {
@@ -37,5 +45,40 @@ module.exports = {
         variants: formattedVariants,
       };
     }
+  },
+  findAllProductsWithdIds: async (productIds, order) => {
+    const rows = await Product.findAll({
+      where: {
+        id: {
+          [Op.in]: productIds,
+        },
+      },
+      attributes: { exclude: ["vendor_id", "description"] },
+      include: [
+        {
+          model: Vendor,
+          attributes: ["title", "url", "slug"],
+        },
+        {
+          model: Product,
+          as: "variants",
+          include: [
+            {
+              as: "attributevalues",
+              model: AttributeValue,
+              through: { attributes: [] }, // Exclude join table attributes
+              include: {
+                model: Attribute,
+              },
+            },
+            {
+              model: Image,
+            },
+          ],
+        },
+      ],
+      order: order,
+    });
+    return rows;
   },
 };

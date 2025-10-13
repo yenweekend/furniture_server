@@ -124,23 +124,11 @@ module.exports = {
         productRelevant: productRelevant,
       });
     }
-    const feedbacks = await productDetail.getReviews({
-      include: [
-        {
-          model: User,
-          attributes: ["firstName", "lastName"],
-        },
-        {
-          model: ReviewImage,
-          attributes: ["id", "img_url"],
-        },
-      ],
-    });
+
     res.status(201).json({
       msg: "Get product detail successfully",
       productDetail,
       productRelevant: productRelevant,
-      feedback: feedbacks,
     });
   }),
   getViewedProducts: asyncHandler(async (req, res) => {

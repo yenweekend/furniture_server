@@ -11,8 +11,10 @@ const {
   Attribute,
   AttributeValue,
   Collection,
-  Review,
-  ReviewImage,
+
+  Gift,
+  ProductGift,
+
   ProductVariantAttribute,
   ProductCollection,
   Vendor,
@@ -209,6 +211,40 @@ Product.belongsTo(Vendor, {
   onUpdate: "CASCADE",
 });
 
+Product.belongsToMany(Gift, {
+  as: "gifts",
+  through: ProductGift,
+  foreignKey: "product_id",
+  otherKey: "gift_id",
+});
+Gift.belongsToMany(Product, {
+  as: "products",
+  through: ProductGift,
+  foreignKey: "gift_id",
+  otherKey: "product_id",
+});
+Product.hasMany(ProductGift, {
+  foreignKey: "product_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+ProductGift.belongsTo(Product, {
+  foreignKey: "product_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+Gift.hasMany(ProductGift, {
+  foreignKey: "gift_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+ProductGift.belongsTo(Gift, {
+  foreignKey: "gift_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
 module.exports = {
   Product,
   Category,
@@ -221,6 +257,8 @@ module.exports = {
   AttributeValue,
   ProductVariantAttribute,
   Vendor,
+  Gift,
+  ProductGift,
 
   User,
   UserCoupon,

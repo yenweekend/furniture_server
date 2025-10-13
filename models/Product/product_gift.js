@@ -1,17 +1,12 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../../configs/postgreConn");
-const shortid = require("shortid");
-
-const Review = sequelize.define(
-  "Review",
+const ProductGift = sequelize.define(
+  "ProductGift",
   {
-    id: {
-      type: DataTypes.STRING,
-      defaultValue: shortid.generate,
-      primaryKey: true,
-    },
     product_id: {
       type: DataTypes.STRING,
+      allowNull: false,
+      primaryKey: true,
       references: {
         model: "product",
         key: "id",
@@ -19,25 +14,28 @@ const Review = sequelize.define(
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     },
-    user_id: {
+    gift_id: {
       type: DataTypes.STRING,
+      allowNull: false,
+      primaryKey: true,
       references: {
-        model: "users",
+        model: "gift",
         key: "id",
       },
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     },
-    rate: {
-      type: DataTypes.INTEGER,
-    },
-    comment: {
-      type: DataTypes.TEXT,
-    },
   },
   {
-    tableName: "review",
+    tableName: "product_gift",
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["product_id", "gift_id"],
+      },
+    ],
   }
 );
-module.exports = Review;
+
+module.exports = ProductGift;
