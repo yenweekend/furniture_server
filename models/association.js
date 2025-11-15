@@ -18,6 +18,7 @@ const {
   ProductVariantAttribute,
   ProductCollection,
   Vendor,
+  Address
 } = require("./index");
 
 // user - coupon
@@ -28,6 +29,19 @@ User.belongsToMany(Coupon, {
   foreignKey: "user_id",
   otherKey: "coupon_id",
 });
+
+//user- address
+User.hasMany(Address, {
+  foreignKey: "user_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+Address.belongsTo(User, {
+  foreignKey: "user_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
 Coupon.belongsToMany(User, {
   as: "users",
   through: UserCoupon,
@@ -282,6 +296,7 @@ module.exports = {
   Vendor,
   Gift,
   ProductGift,
+  Address,
 
   User,
   UserCoupon,

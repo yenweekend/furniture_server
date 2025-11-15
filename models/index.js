@@ -19,10 +19,11 @@ const Collection = require("./Product/collection");
 const ProductVariantAttribute = require("./Product/product_variant_attribute");
 const ProductCollection = require("./Product/product_collection");
 const Vendor = require("./Product/vendor");
+const Address = require("./address");
 
 module.exports = {
   User,
-
+Address,
   Product,
   Category,
   CategorySubCategory,
