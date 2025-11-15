@@ -245,6 +245,29 @@ ProductGift.belongsTo(Gift, {
   onUpdate: "CASCADE",
 });
 
+Category.belongsToMany(Category, {
+  through: CategorySubCategory,
+  as: "SubCategories",
+  foreignKey: "category_id",
+  otherKey: "sub_category_id",
+});
+Category.belongsToMany(Category, {
+  through: CategorySubCategory,
+  as: "Categories",
+  foreignKey: "sub_category_id",
+  otherKey: "category_id",
+});
+Category.hasMany(CategorySubCategory, {
+  foreignKey: "category_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+CategorySubCategory.belongsTo(Category, {
+  foreignKey: "category_id",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
 module.exports = {
   Product,
   Category,

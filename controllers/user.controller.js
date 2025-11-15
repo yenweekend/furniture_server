@@ -2,7 +2,6 @@ const { User, Address } = require("../models/association");
 const { sequelize } = require("../configs/postgreConn");
 const asyncHanlder = require("express-async-handler");
 const jwt = require("jsonwebtoken");
-const { sendMail } = require("../configs/sendEmail");
 const { Op } = require("@sequelize/core");
 const throwError = require("../helpers/throwError");
 require("dotenv").config();

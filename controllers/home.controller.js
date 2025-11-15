@@ -76,16 +76,7 @@ module.exports = {
       });
       showerProducts = products;
     }
-    const blogs = await BlogDetail.findAll({
-      include: {
-        model: Blog,
-        attributes: {
-          exclude: ["id"],
-        },
-      },
-      order: [["createdAt", "DESC"]], // Order by createdAt in descending order
-      limit: 6, // Limit the results to 6
-    });
+
     const coupons = await Coupon.findAll({
       where: {
         expire_date: {
@@ -101,10 +92,8 @@ module.exports = {
         latestCollection,
         sofaProducts: sofaProducts,
         showerProducts: showerProducts,
-        blogs: blogs,
         coupons: coupons,
       },
     });
   }),
-
 };
