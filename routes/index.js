@@ -8,5 +8,7 @@ const router = express.Router();
 router.use("/v1/auth", auth); // Route cho auth
 router.use("/products", productRouter); // Route cho products
 router.get("/home/get", HomeController.getContent);
+router.get("/search", HomeController.getSearch);
+
 
 module.exports = router;
