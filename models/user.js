@@ -38,6 +38,12 @@ const User = sequelize.define(
     passwordChangeAt: {
       type: DataTypes.STRING,
     },
+    passwordResetToken: {
+      type: DataTypes.STRING,
+    },
+    passwordResetExpired: {
+      type: DataTypes.STRING,
+    },
   },
   {
     tableName: "users", // Tên bảng trong cơ sở dữ liệu
