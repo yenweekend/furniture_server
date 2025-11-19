@@ -176,24 +176,18 @@ module.exports = {
   forgotPassword: asyncHanlder(async (req, res) => {
     const { email } = req.query;
     if (!email) throw new Error("Hãy điền email");
-    const user = await User.findOne({
-      where: {
-        email: email,
-      },
-    });
+
+    const user = await User.findOne({ where: { email } });
     if (!user) throw new Error("Người dùng không tồn tại");
-    const resetToken = await user.createTokenPasswordAlter(); // token này chưa được hash
+
+    const resetToken = await user.createTokenPasswordAlter();
     await user.save();
-    const html = `Xin vui lòng click vào link dưới đây để thay đổi mật khẩu của bạn.Link này sẽ hết hạn sau 15 phút kể từ bây giờ. <a href=${process.env.URL_CLIENT}/auth/resetpassword/${resetToken}>Click here</a>`;
-    const data = {
-      email,
-      html,
-    };
-    const result = await sendMail(data);
-    return res.status(201).json({
-      success: true,
-      result,
-    });
+
+    const html = `Xin vui lòng click vào link dưới đây để thay đổi mật khẩu của bạn. Link này sẽ hết hạn sau 15 phút kể từ bây giờ. <a href="${process.env.URL_CLIENT}/auth/resetpassword/${resetToken}">Click here</a>`;
+
+    const result = await sendMail({ email, html });
+
+    res.status(201).json({ success: true, result });
   }),
 
   checkAuth: asyncHanlder(async (req, res) => {
