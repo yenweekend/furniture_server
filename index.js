@@ -4,21 +4,23 @@ const { sequelize } = require("./configs/postgreConn");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const bodyParser = require("body-parser");
 const { dbConn } = require("./configs/postgreConn");
 
 const app = express();
+
 const FRONTEND_URL =
   process.env.NODE_ENV === "production"
     ? process.env.URL_CLIENT
     : "http://localhost:5173";
 
 const allowedOrigins = ["http://localhost:5173", process.env.URL_CLIENT];
-const session = require("express-session");
+
+// 🟢 DÙNG DUY NHẤT EXPRESS.JSON — không dùng body-parser nữa
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(
   cors({
-    // origin: FRONTEND_URL,
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -30,27 +32,24 @@ app.use(
     credentials: true,
   })
 );
-app.use(cookieParser());
-app.use(bodyParser.json());
 
-app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 dbConn();
-
 sequelize.sync();
 
 const routes = require("./routes");
-
 app.use("/api", routes);
 
 app.get("/", (req, res) => {
   res.send("Server Baya On");
 });
 
+// 404 handler
 app.use((req, res, next) => {
   const error = new Error("Not found");
   error.status = 404;
-  next(error); // chuyển lỗi đến xử lí lỗi
+  next(error);
 });
 
 // error handler middleware
@@ -67,6 +66,7 @@ app.use((error, req, res, next) => {
 const server = app.listen(PORT, () => {
   console.log(`Start server listen at http://localhost:${PORT}`);
 });
+
 process.on("SIGINT", () => {
   server.close(() => console.log(`exits server express`));
 });

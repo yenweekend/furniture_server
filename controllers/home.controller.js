@@ -76,16 +76,7 @@ module.exports = {
       });
       showerProducts = products;
     }
-    const blogs = await BlogDetail.findAll({
-      include: {
-        model: Blog,
-        attributes: {
-          exclude: ["id"],
-        },
-      },
-      order: [["createdAt", "DESC"]], // Order by createdAt in descending order
-      limit: 6, // Limit the results to 6
-    });
+
     const coupons = await Coupon.findAll({
       where: {
         expire_date: {
@@ -101,10 +92,66 @@ module.exports = {
         latestCollection,
         sofaProducts: sofaProducts,
         showerProducts: showerProducts,
-        blogs: blogs,
         coupons: coupons,
       },
     });
   }),
+   getSearch: asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.pageSize) || 15;
+    const offset = (page - 1) * limit;
+    const sort = req.query.sort || "createdAt_asc";
+    // Split the sort query into column and direction
+    const [sortColumn, sortDirection] = sort.split("_"); // Example: 'title_asc' => ['title', 'asc']
+    // Validate sortDirection, default to 'asc' if not provided or invalid
+    const validDirections = ["asc", "desc"];
+    const direction = validDirections.includes(sortDirection)
+      ? sortDirection
+      : "asc";
 
+    // Dynamically build the ORDER BY clause
+    const orderByClause = `p."${sortColumn}" ${direction.toUpperCase()}`;
+    const searchKey = req.query.q;
+    let order = [];
+    if (sort) {
+      const [field, direct] = sort.split("_");
+      if (
+        ["price", "title", "createdAt"].includes(field) &&
+        ["asc", "desc"].includes(direct)
+      ) {
+        order.push([field, direct.toUpperCase()]); // Sequelize uses "ASC" or "DESC"
+      }
+    }
+    const results = await sequelize.query(
+      `
+      SELECT 
+        p.id,
+        COUNT(*) OVER() AS total_count
+      FROM 
+        product AS p
+      WHERE 
+        p.product_tsv @@ plainto_tsquery('english', :searchKey)
+      LIMIT :limit OFFSET :offset
+      `,
+      {
+        replacements: { searchKey: searchKey, limit: limit, offset: offset },
+        type: sequelize.QueryTypes.SELECT,
+      }
+    );
+    const productIds = results.map((row) => {
+      return row.id;
+    });
+    const products = await productServices.findAllProductsWithdIds(
+      productIds,
+      order
+    );
+    const formattedProducts = products.map((product) =>
+      ctrls.extractAttribute(product.toJSON())
+    );
+    const count = results.length > 0 ? results[0].total_count : 0;
+    res.status(200).json({
+      rows: formattedProducts,
+      count: parseInt(count),
+    });
+  }),
 };
