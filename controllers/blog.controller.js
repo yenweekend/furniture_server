@@ -113,4 +113,27 @@ module.exports = {
       throw error;
     }
   }),
+  getLastestBlog: asyncHandler(async (req, res, next) => {
+    try {
+      const latestBlogs = await BlogDetail.findAll({
+        attributes: {
+          exclude: ["id", "blog_id", "content"],
+        },
+        include: [
+          {
+            model: Blog,
+            attributes: ["title", "slug"],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+        limit: 4,
+      });
+      res.status(200).json({
+        msg: "Get Blog Detail successfully",
+        data: latestBlogs,
+      });
+    } catch (error) {
+      throw error;
+    }
+  }),
 };
