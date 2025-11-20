@@ -136,4 +136,18 @@ module.exports = {
       throw error;
     }
   }),
+  bulkCreateBlog: asyncHandler(async (req, res, next) => {
+    const blogs = req.body.data;
+    await Blog.bulkCreate(blogs);
+    return res.status(201).json({
+      msg: "Thêm blogs thành công",
+    });
+  }),
+  bulkCreateBlogDetail: asyncHandler(async (req, res, next) => {
+    const blogs = req.body.data;
+    await BlogDetail.bulkCreate(blogs);
+    return res.status(201).json({
+      msg: "Thêm blogs thành công",
+    });
+  }),
 };
