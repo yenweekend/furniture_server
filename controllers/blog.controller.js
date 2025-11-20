@@ -40,4 +40,77 @@ module.exports = {
       throw error;
     }
   }),
+  getBlog: asyncHandler(async (req, res, next) => {
+    try {
+      const slug = req.params.slug;
+      const blog = await Blog.findOne({
+        where: { slug },
+        attributes: { exclude: ["id", "updatedAt"] },
+        include: [
+          {
+            model: BlogDetail, // Assuming your related model is BlogPost
+            attributes: { exclude: ["id", "blog_id", "updatedAt"] },
+          },
+        ],
+      });
+
+      if (!blog) {
+        return res.status(404).json({ msg: "Blog not found" });
+      }
+
+      res.status(200).json({
+        msg: "Get Blog Detail successfully",
+        data: blog,
+      });
+    } catch (error) {
+      throw error;
+    }
+  }),
+  getBlogDetail: asyncHandler(async (req, res, next) => {
+    try {
+      const slug = req.params.slug;
+      const blogDetail = await BlogDetail.findOne({
+        where: { slug: slug },
+        attributes: {
+          exclude: ["blog_id", "id"],
+        },
+        include: [
+          {
+            model: Blog,
+            attributes: { exclude: ["id"] },
+          },
+        ],
+      });
+      const blog = await Blog.findOne({
+        where: {
+          slug: blogDetail.Blog.slug,
+        },
+      });
+      const relatedBlogs = await blog.getBlogDetails({
+        where: {
+          slug: { [Op.ne]: blogDetail.slug }, // Exclude the current blog detail by slug
+          // Add other conditions for related blogs, if needed
+        },
+        limit: 6,
+        attributes: { exclude: ["blog_id"] },
+        include: [
+          {
+            model: Blog, // Include the Blog model
+            attributes: { exclude: ["id"] }, // Optionally exclude attributes from the Blog model
+          },
+        ],
+      });
+
+      if (!blogDetail) {
+        return res.status(404).json({ msg: "Blog not found" });
+      }
+      res.status(200).json({
+        msg: "Get Blog Detail successfully",
+        data: blogDetail,
+        relateBlogs: relatedBlogs,
+      });
+    } catch (error) {
+      throw error;
+    }
+  }),
 };
