@@ -160,6 +160,38 @@ module.exports = {
     });
   }),
 
+  resetPassword: asyncHanlder(async (req, res) => {
+    const token = req.body.params;
+    const { password } = req.body.data;
+    if (!password) throw new Error("Missing imputs");
+    if (!token) {
+    }
+    // Hash token that client send to server
+    const passwordResetToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+    // Check is there token exist in server
+    const user = await User.findOne({
+      where: {
+        passwordResetToken: passwordResetToken,
+        passwordResetExpired: {
+          [Op.gt]: Date.now(),
+        },
+      },
+    });
+    // if the token are not exist
+    if (!user) throw new Error("Đã hết thời gian yêu cầu!");
+    user.password = password;
+    user.passwordResetToken = null;
+    user.passwordResetExpireds = null;
+    user.passwordChangeAt = Date.now();
+    await user.save();
+    return res.status(201).json({
+      msg: "Thay đổi mật khẩu thành công",
+    });
+  }),
+
   getAccount: asyncHanlder(async (req, res) => {
     const userId = req.userId;
     const user = await User.findOne({
