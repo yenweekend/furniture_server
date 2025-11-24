@@ -76,7 +76,16 @@ module.exports = {
       });
       showerProducts = products;
     }
-
+    const blogs = await BlogDetail.findAll({
+      include: {
+        model: Blog,
+        attributes: {
+          exclude: ["id"],
+        },
+      },
+      order: [["createdAt", "DESC"]], // Order by createdAt in descending order
+      limit: 6, // Limit the results to 6
+    });
     const coupons = await Coupon.findAll({
       where: {
         expire_date: {
@@ -92,11 +101,12 @@ module.exports = {
         latestCollection,
         sofaProducts: sofaProducts,
         showerProducts: showerProducts,
+        blogs: blogs,
         coupons: coupons,
       },
     });
   }),
-   getSearch: asyncHandler(async (req, res) => {
+  getSearch: asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.pageSize) || 15;
     const offset = (page - 1) * limit;

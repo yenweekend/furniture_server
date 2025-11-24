@@ -2,6 +2,7 @@ const { User, Address } = require("../models/association");
 const { sequelize } = require("../configs/postgreConn");
 const asyncHanlder = require("express-async-handler");
 const jwt = require("jsonwebtoken");
+const { sendMail } = require("../configs/sendEmail");
 const { Op } = require("@sequelize/core");
 const throwError = require("../helpers/throwError");
 require("dotenv").config();
@@ -159,7 +160,28 @@ module.exports = {
       msg: "Không tìm thấy người dùng",
     });
   }),
-
+  forgotPassword: asyncHanlder(async (req, res) => {
+    const { email } = req.query;
+    if (!email) throw new Error("Hãy điền email");
+    const user = await User.findOne({
+      where: {
+        email: email,
+      },
+    });
+    if (!user) throw new Error("Người dùng không tồn tại");
+    const resetToken = await user.createTokenPasswordAlter(); // token này chưa được hash
+    await user.save();
+    const html = `Xin vui lòng click vào link dưới đây để thay đổi mật khẩu của bạn.Link này sẽ hết hạn sau 15 phút kể từ bây giờ. <a href=${process.env.URL_CLIENT}/auth/resetpassword/${resetToken}>Click here</a>`;
+    const data = {
+      email,
+      html,
+    };
+    const result = await sendMail(data);
+    return res.status(201).json({
+      success: true,
+      result,
+    });
+  }),
   resetPassword: asyncHanlder(async (req, res) => {
     const token = req.body.params;
     const { password } = req.body.data;
@@ -191,7 +213,6 @@ module.exports = {
       msg: "Thay đổi mật khẩu thành công",
     });
   }),
-
   getAccount: asyncHanlder(async (req, res) => {
     const userId = req.userId;
     const user = await User.findOne({
@@ -202,29 +223,6 @@ module.exports = {
     });
     return res.status(200).json({
       account: user,
-    });
-  }),
-
-forgotPassword: asyncHanlder(async (req, res) => {
-    const { email } = req.query;
-    if (!email) throw new Error("Hãy điền email");
-    const user = await User.findOne({
-      where: {
-        email: email,
-      },
-    });
-    if (!user) throw new Error("Người dùng không tồn tại");
-    const resetToken = await user.createTokenPasswordAlter(); // token này chưa được hash
-    await user.save();
-    const html = `Xin vui lòng click vào link dưới đây để thay đổi mật khẩu của bạn.Link này sẽ hết hạn sau 15 phút kể từ bây giờ. <a href=${process.env.URL_CLIENT}/auth/resetpassword/${resetToken}>Click here</a>`;
-    const data = {
-      email,
-      html,
-    };
-    const result = await sendMail(data);
-    return res.status(201).json({
-      success: true,
-      result,
     });
   }),
 

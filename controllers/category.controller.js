@@ -1,5 +1,6 @@
 const {
   Category,
+  CategorySubCategory,
   Vendor,
   Product,
   Attribute,
@@ -9,77 +10,107 @@ const {
 const asyncHandler = require("express-async-handler");
 const { Op } = require("sequelize");
 const ctrls = require("../services/product.service");
-
 module.exports = {
-  // Lấy sản phẩm theo category với pagination và filters
   getPaginatedCategoryProducts: asyncHandler(async (req, res) => {
     const { slug } = req.params;
-    const currentPage = parseInt(req.query.page, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize, 10) || 30;
-    const offset = (currentPage - 1) * pageSize;
-
+    const currentPage = req.query.page || 1;
+    const pageSize = req.query.pageSize || 30;
     const { sort, ...filters } = req.query;
-
-    // Tìm category theo slug
+    const offset = (currentPage - 1) * pageSize;
+    // Tìm kiếm Category hoặc Subcategory theo slug
     const category = await Category.findOne({
       where: { slug },
-      attributes: { exclude: ["createdAt", "updatedAt"] },
+      exclude: {
+        attributes: ["createdAt", "updatedAt"],
+      },
     });
-
     if (!category) {
       return res.status(404).json({ msg: "Không tìm thấy danh mục" });
     }
-
-    // Xử lý sort
-    const order = [];
+    let order = [];
     if (sort) {
-      const [field, direction] = sort.split("_");
-      const validFields = ["price", "title", "createdAt"];
-      const validDirections = ["asc", "desc"];
-      if (validFields.includes(field) && validDirections.includes(direction)) {
-        order.push([field, direction.toUpperCase()]);
+      const [field, direct] = sort.split("_");
+      if (
+        ["price", "title", "createdAt"].includes(field) &&
+        ["asc", "desc"].includes(direct)
+      ) {
+        order.push([field, direct.toUpperCase()]); // Sequelize uses "ASC" or "DESC"
       }
     }
-
-    // Xử lý filter giá
-    const conditions = {};
-    if (Array.isArray(filters.price_range)) {
+    let conditions = {};
+    let vendorConditions = {};
+    if (filters.price_range && Array.isArray(filters.price_range)) {
       const priceConditions = filters.price_range
         .map((range) => {
-          const [type, ...values] = range.split("_");
-          switch (type) {
-            case "gte":
-              return { price: { [Op.gte]: parseFloat(values[0]) } };
-            case "lte":
-              return { price: { [Op.lte]: parseFloat(values[0]) } };
-            case "between":
-              return {
-                price: {
-                  [Op.between]: [parseFloat(values[0]), parseFloat(values[1])],
-                },
-              };
-            default:
-              return null;
+          //['gte_1000','betweeb_1000_2000']
+          const parts = range.split("_");
+          if (parts[0] === "gte") {
+            return { price: { [Op.gte]: parseFloat(parts[1]) } }; //{ price: { [Op.gte]: parseFloat(1000) } }
+          } else if (parts[0] === "lte") {
+            return { price: { [Op.lte]: parseFloat(parts[1]) } };
+          } else if (parts[0] === "between") {
+            return {
+              price: {
+                [Op.between]: [parseFloat(parts[1]), parseFloat(parts[2])],
+              },
+            };
           }
+          return null;
         })
-        .filter(Boolean);
+        .filter(Boolean); // Loại bỏ các phần tử `null`
 
-      if (priceConditions.length) conditions[Op.or] = priceConditions;
+      if (priceConditions.length > 0) {
+        conditions[Op.or] = priceConditions;
+      }
     }
-
-    // Xử lý filter vendor
-    let vendorConditions = {};
-    if (Array.isArray(filters.vendor) && filters.vendor.length > 0) {
-      vendorConditions = { title: { [Op.in]: filters.vendor } };
+    if (filters.vendor && Array.isArray(filters.vendor)) {
+      vendorConditions = {
+        title: {
+          [Op.in]: filters.vendor,
+        },
+      };
     }
-
-    // Lấy id của category và subcategories
+    let vendorIds = new Set();
     const subcategories = await category.getSubCategories({
       attributes: ["id"],
     });
-    const categoryIds = [category.id, ...subcategories.map((sub) => sub.id)];
+    let categoryIds;
+    if (subcategories.length > 0) {
+      categoryIds = subcategories.map((sub) => sub.id);
+      categoryIds = [...categoryIds, category.id];
+    } else {
+      categoryIds = [category.id];
+    }
 
-    // Lấy products với filters và pagination
+    const allRows = await Product.findAll({
+      attributes: { exclude: ["vendor_id", "id", "description"] },
+      include: [
+        {
+          model: Vendor,
+          attributes: ["id", "title", "url", "slug"],
+        },
+        {
+          as: "categories",
+          model: Category,
+          where: { id: { [Op.in]: categoryIds } }, // Filter by category and subcategories
+          through: { attributes: [] }, // Exclude junction table attributes
+        },
+      ],
+    });
+
+    // allRows will not contain filter so as to get all vendor
+    if (allRows.length === 0) {
+      return res.status(200).json({
+        msg: "Chưa có sản phẩm nào",
+        products: [],
+        vendors: [],
+        category,
+        currentPage: currentPage,
+        pageSize: pageSize,
+        count: 0,
+        totalPage: 0,
+      });
+    }
     const { count, rows } = await Product.findAndCountAll({
       attributes: { exclude: ["vendor_id", "description"] },
       where: conditions,
@@ -88,13 +119,13 @@ module.exports = {
           model: Vendor,
           attributes: ["id", "title", "url", "slug"],
           where: vendorConditions,
-          required: Object.keys(vendorConditions).length > 0,
+          required: Object.keys(vendorConditions).length > 0, // get all vendor when there is no conditions although it get vendor_id null in product
         },
         {
           as: "categories",
           model: Category,
-          where: { id: { [Op.in]: categoryIds } },
-          through: { attributes: [] },
+          where: { id: { [Op.in]: categoryIds } }, // Filter by category and subcategories
+          through: { attributes: [] }, // Exclude junction table attributes
         },
         {
           model: Product,
@@ -103,101 +134,77 @@ module.exports = {
             {
               as: "attributevalues",
               model: AttributeValue,
-              through: { attributes: [] },
-              include: { model: Attribute },
+              through: { attributes: [] }, // Exclude join table attributes
+              include: {
+                model: Attribute,
+              },
             },
-            { model: Image },
+            {
+              model: Image,
+            },
           ],
         },
       ],
       limit: pageSize,
-      offset,
-      order,
+      offset: offset,
+      order: order,
     });
-
-    if (rows.length === 0) {
-      return res.status(200).json({
-        msg: "Chưa có sản phẩm nào",
-        products: [],
-        vendors: [],
-        category,
-        currentPage,
-        pageSize,
-        count: 0,
-        totalPage: 0,
-      });
-    }
-
-    // Format product
-    const formattedRows = rows.map((product) =>
-      ctrls.extractAttribute(product.toJSON())
-    );
-
-    // Lấy vendor từ products hiện tại
-    const vendorIds = [
-      ...new Set(rows.map((p) => p.Vendor?.id).filter(Boolean)),
-    ];
+    const formattedRows = rows.map((product) => {
+      return ctrls.extractAttribute(product.toJSON());
+    });
+    allRows.forEach((product) => {
+      if (product.Vendor) vendorIds.add(product.Vendor.id);
+    });
     const vendors = await Vendor.findAll({
-      where: { id: { [Op.in]: vendorIds } },
+      where: {
+        id: {
+          [Op.in]: [...vendorIds],
+        },
+      },
     });
-
     return res.status(200).json({
       vendors,
       products: formattedRows,
       category,
-      currentPage,
-      pageSize,
-      count,
+      currentPage: currentPage,
+      pageSize: pageSize,
+      count: count,
       totalPage: Math.ceil(count / pageSize),
     });
   }),
-
-  // Thêm nhiều categories
   bulkCreate: asyncHandler(async (req, res) => {
     const categories = req.body.data;
-    if (!Array.isArray(categories) || !categories.length) {
-      return res.status(400).json({ msg: "Data không hợp lệ" });
-    }
-
     await Category.bulkCreate(categories);
-    return res.status(201).json({ msg: "Thêm categories thành công" });
+    return res.status(201).json({
+      msg: "Thêm categories thành công",
+    });
   }),
-
-  // Tạo category mới cùng subcategories
   create: asyncHandler(async (req, res) => {
     const { parentCategory, subCategories } = req.body;
-    if (!parentCategory || !parentCategory.title) {
-      return res.status(400).json({ msg: "parentCategory không hợp lệ" });
-    }
-
-    const [parent] = await Category.findOrCreate({
-      where: { title: parentCategory.title },
+    const parent = await Category.findOrCreate({
+      where: {
+        title: parentCategory.title,
+      },
     });
-
-    if (subCategories && subCategories.length > 0) {
+    if (parent && subCategories && subCategories.length > 0) {
       await parent.createSubCategories(subCategories);
     }
-
-    return res.status(201).json({ msg: "Tạo mới danh mục thành công" });
+    return res.status(201).json({
+      msg: "Tạo mới danh mục thành công",
+    });
   }),
-
-  // Thêm subcategories vào category đã có
   addSubCategories: asyncHandler(async (req, res) => {
     const { parentCategoryId, subCategories } = req.body;
-    if (
-      !parentCategoryId ||
-      !Array.isArray(subCategories) ||
-      !subCategories.length
-    ) {
-      return res.status(400).json({ msg: "Input không hợp lệ" });
+    const parent = await Category.findOrCreate({
+      where: {
+        id: parentCategoryId,
+      },
+    });
+    if (parent && subCategories && subCategories.length > 0) {
+      await parent.addSubCategories(subCategories);
     }
-
-    const parent = await Category.findByPk(parentCategoryId);
-    if (!parent) {
-      return res.status(404).json({ msg: "Danh mục không tồn tại" });
-    }
-
-    await parent.addSubCategories(subCategories);
-    return res.status(201).json({ msg: "Thêm mới danh mục con thành công" });
+    return res.status(201).json({
+      msg: "Thêm mới danh mục con thành công",
+    });
   }),
 };

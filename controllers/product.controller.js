@@ -3,15 +3,24 @@ const {
   Image,
   Attribute,
   AttributeValue,
+  Vendor,
   Category,
   Collection,
   ProductVariantAttribute,
+  ReviewImage,
+  Review,
+  User,
 } = require("../models/association");
+const cloudinary = require("cloudinary").v2;
 
 const { Op, Sequelize } = require("sequelize");
+const { sequelize } = require("../configs/postgreConn");
 const asyncHandler = require("express-async-handler");
 const ctrls = require("../services/product.service");
-
+const throwError = require("../helpers/throwError");
+const {
+  attribute,
+} = require("@sequelize/core/_non-semver-use-at-your-own-risk_/expression-builders/attribute.js");
 module.exports = {
   getProductDetail: asyncHandler(async (req, res) => {
     const slug = req.params.slug;
@@ -124,11 +133,23 @@ module.exports = {
         productRelevant: productRelevant,
       });
     }
-
+    const feedbacks = await productDetail.getReviews({
+      include: [
+        {
+          model: User,
+          attributes: ["firstName", "lastName"],
+        },
+        {
+          model: ReviewImage,
+          attributes: ["id", "img_url"],
+        },
+      ],
+    });
     res.status(201).json({
       msg: "Get product detail successfully",
       productDetail,
       productRelevant: productRelevant,
+      feedback: feedbacks,
     });
   }),
   getViewedProducts: asyncHandler(async (req, res) => {
@@ -528,5 +549,104 @@ module.exports = {
     }
     // Send response after processing all products
     res.status(201).json({ msg: "Products processed successfully" });
+  }),
+  // handleFeedBack: asyncHandler(async (req, res) => {
+  //   const userId = req.userId;
+  //   const { rating, feedback, productId } = req.body;
+  //   const transaction = await sequelize.transaction();
+  //   const uploadedImages = req.files.map((file) => file.path);
+
+  //   try {
+  //     const user = await User.findByPk(userId, { transaction });
+  //     if (!user) {
+  //       throwError("Không tìm thấy tài khoản người dùng", 404);
+  //     }
+  //     const product = await Product.findByPk(productId, { transaction });
+  //     if (!product) {
+  //       throwError("Product not found", 404);
+  //     }
+  //     if (await user.hasProduct(product)) {
+  //       throwError("You have given feedback to this product", 400);
+  //     }
+  //     const review = await user.createReview({
+  //       rate: rating,
+  //       comment: feedback,
+  //       product_id: productId,
+  //     });
+  //     await review.setProduct(product);
+  //     await Promise.all(
+  //       uploadedImages.map(async (item) => {
+  //         await review.createReviewImage({ img_url: item }, { transaction });
+  //       })
+  //     );
+  //     await transaction.commit();
+  //     return res.status(201).json({
+  //       msg: "Gave feedback successfully",
+  //     });
+  //   } catch (error) {
+  //     await Promise.all(
+  //       uploadedImages.map(async (imageUrl) => {
+  //         const publicId = imageUrl.split("/").pop().split(".")[0]; // Extract public ID
+  //         await cloudinary.uploader.destroy(publicId);
+  //       })
+  //     );
+  //     await transaction.rollback();
+  //     throw error;
+  //   }
+  // }),
+  handleFeedBack: asyncHandler(async (req, res) => {
+    const userId = req.userId;
+    const { rating, feedback, productId } = req.body;
+    const transaction = await sequelize.transaction();
+    const uploadedImages = req.files.map((file) => file.path);
+
+    try {
+      const user = await User.findByPk(userId, { transaction });
+      if (!user) throwError("Không tìm thấy tài khoản người dùng", 404);
+
+      const product = await Product.findByPk(productId, { transaction });
+      if (!product) throwError("Product not found", 404);
+
+      // Nếu user đã có review cho product này thì không cho thêm
+      const existingReview = await Review.findOne({
+        where: { user_id: userId, product_id: productId },
+        transaction,
+      });
+      if (existingReview)
+        throwError("You have given feedback to this product", 400);
+
+      // ✅ Tạo review trực tiếp có product_id
+      const review = await user.createReview(
+        {
+          rate: rating,
+          comment: feedback,
+          product_id: productId,
+        },
+        { transaction }
+      );
+
+      // (Không cần review.setProduct(product) nữa, vì đã gán product_id rồi)
+
+      // ✅ Thêm ảnh review
+      await Promise.all(
+        uploadedImages.map(async (item) => {
+          await review.createReviewImage({ img_url: item }, { transaction });
+        })
+      );
+
+      await transaction.commit();
+      return res.status(201).json({ msg: "Gave feedback successfully" });
+    } catch (error) {
+      // ✅ Dọn file cloudinary nếu có lỗi
+      await Promise.all(
+        uploadedImages.map(async (imageUrl) => {
+          const publicId = imageUrl.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(publicId);
+        })
+      );
+
+      await transaction.rollback();
+      throw error;
+    }
   }),
 };

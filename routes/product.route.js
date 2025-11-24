@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const ProductController = require("../controllers/product.controller");
+const uploadCloud = require("../configs/cloudinary.config");
+const { verifyToken } = require("../middleware/auth");
 
 // router.post(
 //   "/createproduct",
@@ -25,5 +27,10 @@ router.get("/product-detail/:slug", ProductController.getProductDetail);
 router.get("/viewed", ProductController.getViewedProducts);
 
 router.post("/update", ProductController.updateProductCategory);
-
+router.post(
+  "/feedback",
+  verifyToken,
+  uploadCloud.array("images", 4),
+  ProductController.handleFeedBack
+);
 module.exports = router;
